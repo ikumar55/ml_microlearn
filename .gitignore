@@ -41,3 +41,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Development documentation (local reference only)
+DEVELOPMENT_GUIDE.md
