@@ -44,7 +44,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-  final GlobalKey<_ClassesTabState> _classesTabKey = GlobalKey<_ClassesTabState>();
+
+  // Navigation keys for each tab to manage their navigation stacks
+  final List<GlobalKey<NavigatorState>> _navigatorKeys = [
+    GlobalKey<NavigatorState>(), // Study tab
+    GlobalKey<NavigatorState>(), // Classes tab
+    GlobalKey<NavigatorState>(), // Progress tab
+    GlobalKey<NavigatorState>(), // Settings tab
+  ];
 
   // Screens for each tab
   late final List<Widget> _screens;
@@ -53,24 +60,47 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _screens = [
-      const StudyTab(),
-      ClassesTab(key: _classesTabKey),
-      const ProgressTab(),
-      const SettingsTab(),
+      _buildTabNavigator(0, const StudyTab()),
+      _buildTabNavigator(1, const ClassesTab()),
+      _buildTabNavigator(2, const ProgressTab()),
+      _buildTabNavigator(3, const SettingsTab()),
     ];
+  }
+
+  Widget _buildTabNavigator(int tabIndex, Widget child) {
+    return Navigator(
+      key: _navigatorKeys[tabIndex],
+      onGenerateRoute: (routeSettings) {
+        return MaterialPageRoute(
+          builder: (context) => child,
+          settings: routeSettings,
+        );
+      },
+    );
+  }
+
+  void _onTabSelected(int index) {
+    if (_currentIndex == index) {
+      // If we're already on this tab, pop to the root of that tab's navigation stack
+      _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+    } else {
+      // Switch to the selected tab
+      setState(() {
+        _currentIndex = index;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onDestinationSelected: _onTabSelected,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.quiz_outlined),
@@ -94,15 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: _currentIndex == 1 // Only show on Classes tab
-          ? FloatingActionButton(
-              onPressed: () async {
-                await _classesTabKey.currentState?._addNewClass();
-              },
-              tooltip: 'Add Class',
-              child: const Icon(Icons.add),
-            )
-          : null,
+
     );
   }
 
@@ -962,8 +984,7 @@ class _ClassesTabState extends State<ClassesTab> {
                           onSelected: (value) {
                             switch (value) {
                               case 'view':
-                                Navigator.push(
-                                  context,
+                                Navigator.of(context).push(
                                   MaterialPageRoute(
                                     builder: (context) => LecturesScreen(studyClass: studyClass),
                                   ),
@@ -994,8 +1015,7 @@ class _ClassesTabState extends State<ClassesTab> {
                           ],
                         ),
                         onTap: () {
-                          Navigator.push(
-                            context,
+                          Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (context) => LecturesScreen(studyClass: studyClass),
                             ),
@@ -1005,6 +1025,11 @@ class _ClassesTabState extends State<ClassesTab> {
                     );
                   },
                 ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addNewClass,
+        tooltip: 'Add Class',
+        child: const Icon(Icons.add),
+      ),
     );
   }
 

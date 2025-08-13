@@ -842,7 +842,12 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                   ],
                 ),
       floatingActionButton: _isSelectionMode
-          ? null
+          ? FloatingActionButton(
+              onPressed: _batchDeleteSelected,
+              tooltip: 'Delete Selected',
+              backgroundColor: Colors.red,
+              child: const Icon(Icons.delete, color: Colors.white),
+            )
           : FloatingActionButton(
               onPressed: _addNewFlashcard,
               tooltip: 'Add Flashcard',

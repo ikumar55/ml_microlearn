@@ -302,8 +302,7 @@ class _LecturesScreenState extends State<LecturesScreen> {
                           ],
                         ),
                         onTap: () {
-                          Navigator.push(
-                            context,
+                          Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (context) => FlashcardsScreen(
                                 studyClass: widget.studyClass,

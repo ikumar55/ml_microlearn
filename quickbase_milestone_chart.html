@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Lead Milestone Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .chart-container {
+            position: relative;
+            height: 500px;
+            margin-top: 20px;
+        }
+        .filters {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .filter-group {
+            display: inline-block;
+            margin-right: 20px;
+        }
+        label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        select {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            color: #d32f2f;
+            padding: 15px;
+            background-color: #ffebee;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .legend {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .legend-item {
+            display: inline-block;
+            margin-right: 20px;
+            font-size: 12px;
+        }
+        .legend-color {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-right: 5px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Study Lead Milestone Dashboard</h2>
+        <p>Interactive horizontal bar chart showing days until next milestone for active projects</p>
+        
+        <div class="filters">
+            <div class="filter-group">
+                <label for="studyLeadFilter">Study Lead:</label>
+                <select id="studyLeadFilter">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <button onclick="refreshChart()" style="padding: 6px 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Refresh Data
+            </button>
+        </div>
+
+        <div id="loading" class="loading">
+            Loading project data...
+        </div>
+
+        <div id="error" class="error" style="display: none;">
+        </div>
+
+        <div class="chart-container" style="display: none;">
+            <canvas id="milestoneChart"></canvas>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <span class="legend-color" style="background-color: #28a745;"></span>
+                On Time
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background-color: #ffc107;"></span>
+                At Risk
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background-color: #dc3545;"></span>
+                Delayed
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background-color: #6c757d;"></span>
+                On Hold
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background-color: #17a2b8;"></span>
+                Other
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            realm: 'cos.quickbase.com',
+            appId: 'bnjucmnz8',
+            userToken: 'caui4c_kq8w_0_bihqmqgwjigtccsa59kddvq93bs',
+            tables: {
+                projects: 'bnkd9x949',
+                milestones: 'bnkd99ra5'
+            },
+            fields: {
+                projects: {
+                    code: '24',
+                    title: '149',
+                    projectHealth: '453',
+                    studyLead: '180',
+                    status: '98',
+                    primaryProjectType: '40'
+                },
+                milestones: {
+                    proposalCode: '22',
+                    title: '6',
+                    expectedDate: '30',
+                    completedDate: '15'
+                }
+            }
+        };
+
+        // Global variables
+        let chart = null;
+        let projectsData = [];
+        let milestonesData = [];
+        let studyLeads = [];
+
+        // Color mapping for project health
+        const healthColors = {
+            'On Time': '#28a745',
+            'At Risk': '#ffc107', 
+            'Delayed': '#dc3545',
+            'On Hold': '#6c757d',
+            'Cancelled': '#6c757d',
+            'Completed': '#28a745'
+        };
+
+        // Utility function to make Quickbase API calls using corrected JSONP format
+        async function quickbaseQuery(tableId, fieldsToSelect, whereClause = '') {
+            return new Promise((resolve, reject) => {
+                // Build field list for legacy API
+                const fieldList = fieldsToSelect.map(f => f.toString()).join('.');
+                
+                // Build query string for legacy API format
+                let query = '';
+                if (whereClause) {
+                    // Simplify the query format for legacy API
+                    query = whereClause.replace(/NOT\({(\d+)\.([A-Z]+)\.['"]([^'"]+)['"]\)/g, "NOT {$1.$2.'$3'}")
+                                      .replace(/\{(\d+)\.([A-Z]+)\.['"]([^'"]+)['"]\}/g, "{$1.$2.'$3'}")
+                                      .replace(/\s+AND\s+/g, ' AND ')
+                                      .replace(/\s+OR\s+/g, ' OR ');
+                }
+                
+                // Create JSONP callback
+                const callbackName = 'qb_callback_' + Date.now();
+                window[callbackName] = function(data) {
+                    delete window[callbackName];
+                    
+                    console.log('API Response:', data);
+                    
+                    if (data.errcode && data.errcode !== 0) {
+                        reject(new Error(`Quickbase Error ${data.errcode}: ${data.errtext || 'Unknown error'}`));
+                        return;
+                    }
+                    
+                    // Convert legacy format to REST-like format
+                    const records = [];
+                    if (data.record) {
+                        const recordArray = Array.isArray(data.record) ? data.record : [data.record];
+                        recordArray.forEach(record => {
+                            const convertedRecord = {};
+                            fieldsToSelect.forEach(fieldId => {
+                                const fieldData = record[fieldId.toString()];
+                                if (fieldData !== undefined && fieldData !== null) {
+                                    convertedRecord[fieldId.toString()] = {
+                                        value: fieldData
+                                    };
+                                }
+                            });
+                            records.push(convertedRecord);
+                        });
+                    }
+                    
+                    console.log('Converted records:', records);
+                    resolve(records);
+                };
+                
+                // Build URL with CORRECT format - table ID in path, not parameter
+                let url = `https://${CONFIG.realm}/db/${tableId}?a=API_DoQuery&apptoken=${CONFIG.userToken}&fmt=structured&includeRids=1`;
+                url += `&clist=${fieldList}`;
+                
+                if (query) {
+                    url += `&query=${encodeURIComponent(query)}`;
+                }
+                
+                url += `&jsonp=${callbackName}`;
+                
+                console.log('Corrected API URL:', url);
+                
+                // Create script tag for JSONP
+                const script = document.createElement('script');
+                script.src = url;
+                script.onerror = (error) => {
+                    console.error('Script load error:', error);
+                    console.error('Failed URL:', url);
+                    delete window[callbackName];
+                    reject(new Error('Failed to load data from Quickbase'));
+                };
+                
+                document.head.appendChild(script);
+                
+                // Clean up script tag after 30 seconds
+                setTimeout(() => {
+                    try {
+                        document.head.removeChild(script);
+                        if (window[callbackName]) {
+                            delete window[callbackName];
+                        }
+                    } catch (e) {}
+                }, 30000);
+            });
+        }
+
+        // Load projects data
+        async function loadProjects() {
+            const fieldsToSelect = [
+                parseInt(CONFIG.fields.projects.code),
+                parseInt(CONFIG.fields.projects.title),
+                parseInt(CONFIG.fields.projects.projectHealth),
+                parseInt(CONFIG.fields.projects.studyLead),
+                parseInt(CONFIG.fields.projects.status),
+                parseInt(CONFIG.fields.projects.primaryProjectType)
+            ];
+
+            // Filter for active projects using legacy API query format
+            // This excludes projects based on multiple criteria
+            const whereClause = `NOT({${CONFIG.fields.projects.code}.CT.'bank'}) AND NOT({${CONFIG.fields.projects.code}.CT.'PTO'}) AND NOT({${CONFIG.fields.projects.primaryProjectType}.EX.'Technical Consulting Agreement'}) AND NOT({${CONFIG.fields.projects.primaryProjectType}.EX.'Time & Materials'}) AND NOT({${CONFIG.fields.projects.status}.EX.'Completed'}) AND NOT({${CONFIG.fields.projects.status}.EX.'Proposed - Awaiting Acceptance'}) AND NOT({${CONFIG.fields.projects.status}.EX.'RFP - Awaiting Proposal'}) AND NOT({${CONFIG.fields.projects.status}.EX.'Closed'}) AND NOT({${CONFIG.fields.projects.status}.EX.'Withdrawn'}) AND NOT({${CONFIG.fields.projects.status}.EX.'Accepted - in Contracting'})`;
+
+            projectsData = await quickbaseQuery(CONFIG.tables.projects, fieldsToSelect, whereClause);
+            
+            // Extract unique study leads for filter
+            studyLeads = [...new Set(projectsData.map(p => p[CONFIG.fields.projects.studyLead]?.value).filter(Boolean))].sort();
+            populateStudyLeadFilter();
+        }
+
+        // Load milestones data
+        async function loadMilestones() {
+            const fieldsToSelect = [
+                parseInt(CONFIG.fields.milestones.proposalCode),
+                parseInt(CONFIG.fields.milestones.title),
+                parseInt(CONFIG.fields.milestones.expectedDate),
+                parseInt(CONFIG.fields.milestones.completedDate)
+            ];
+
+            // Get all milestones (we'll filter them later)
+            milestonesData = await quickbaseQuery(CONFIG.tables.milestones, fieldsToSelect);
+        }
+
+        // Populate study lead filter dropdown
+        function populateStudyLeadFilter() {
+            const select = document.getElementById('studyLeadFilter');
+            select.innerHTML = '<option value="">All Study Leads</option>';
+            
+            studyLeads.forEach(lead => {
+                const option = document.createElement('option');
+                option.value = lead;
+                option.textContent = lead;
+                select.appendChild(option);
+            });
+        }
+
+        // Calculate days until next milestone for a project
+        function calculateDaysUntilNextMilestone(projectCode) {
+            // Find incomplete milestones for this project with expected dates
+            const projectMilestones = milestonesData.filter(m => 
+                m[CONFIG.fields.milestones.proposalCode]?.value === projectCode &&
+                !m[CONFIG.fields.milestones.completedDate]?.value && // Not completed
+                m[CONFIG.fields.milestones.expectedDate]?.value // Has expected date
+            );
+
+            if (projectMilestones.length === 0) {
+                return null; // No upcoming milestones
+            }
+
+            // Sort by expected date and get the earliest
+            projectMilestones.sort((a, b) => {
+                const dateA = new Date(a[CONFIG.fields.milestones.expectedDate].value);
+                const dateB = new Date(b[CONFIG.fields.milestones.expectedDate].value);
+                return dateA - dateB;
+            });
+
+            const nextMilestone = projectMilestones[0];
+            const expectedDate = new Date(nextMilestone[CONFIG.fields.milestones.expectedDate].value);
+            const today = new Date();
+            
+            // Calculate days difference
+            const diffTime = expectedDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            return {
+                days: diffDays,
+                milestoneTitle: nextMilestone[CONFIG.fields.milestones.title]?.value || 'Untitled Milestone',
+                expectedDate: expectedDate.toLocaleDateString()
+            };
+        }
+
+        // Prepare chart data
+        function prepareChartData(selectedStudyLead = '') {
+            let filteredProjects = projectsData;
+            
+            if (selectedStudyLead) {
+                filteredProjects = projectsData.filter(p => 
+                    p[CONFIG.fields.projects.studyLead]?.value === selectedStudyLead
+                );
+            }
+
+            const chartData = [];
+
+            filteredProjects.forEach(project => {
+                const projectCode = project[CONFIG.fields.projects.code]?.value;
+                const projectTitle = project[CONFIG.fields.projects.title]?.value || 'Untitled Project';
+                const projectHealth = project[CONFIG.fields.projects.projectHealth]?.value || 'Other';
+                
+                const milestoneInfo = calculateDaysUntilNextMilestone(projectCode);
+                
+                if (milestoneInfo !== null) {
+                    chartData.push({
+                        projectCode,
+                        projectTitle,
+                        projectHealth,
+                        days: milestoneInfo.days,
+                        milestoneTitle: milestoneInfo.milestoneTitle,
+                        expectedDate: milestoneInfo.expectedDate
+                    });
+                }
+            });
+
+            // Sort by days (overdue first, then by urgency)
+            chartData.sort((a, b) => a.days - b.days);
+
+            return chartData;
+        }
+
+        // Create or update chart
+        function createChart(data) {
+            const ctx = document.getElementById('milestoneChart').getContext('2d');
+            
+            if (chart) {
+                chart.destroy();
+            }
+
+            const labels = data.map(item => item.projectTitle);
+            const values = data.map(item => item.days);
+            const colors = data.map(item => healthColors[item.projectHealth] || '#17a2b8');
+
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Days Until Next Milestone',
+                        data: values,
+                        backgroundColor: colors,
+                        borderColor: colors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', // Makes it horizontal
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Days Until Next Milestone'
+                            },
+                            grid: {
+                                display: true
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Projects'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false // We have our custom legend
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: 'white',
+                            bodyColor: 'white',
+                            borderColor: 'rgba(0, 0, 0, 0.8)',
+                            borderWidth: 1,
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    const index = tooltipItems[0].dataIndex;
+                                    return data[index].projectTitle;
+                                },
+                                label: function(tooltipItem) {
+                                    const index = tooltipItem.dataIndex;
+                                    const item = data[index];
+                                    
+                                    const statusText = item.days < 0 ? 
+                                        `OVERDUE by ${Math.abs(item.days)} days` : 
+                                        `${item.days} days remaining`;
+                                    
+                                    return [
+                                        `Project Code: ${item.projectCode}`,
+                                        `Status: ${statusText}`,
+                                        `Next Milestone: ${item.milestoneTitle}`,
+                                        `Expected Date: ${item.expectedDate}`,
+                                        `Project Health: ${item.projectHealth}`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // Hide error message
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+
+        // Refresh chart with current filter
+        async function refreshChart() {
+            try {
+                hideError();
+                document.getElementById('loading').style.display = 'block';
+                document.querySelector('.chart-container').style.display = 'none';
+
+                const selectedStudyLead = document.getElementById('studyLeadFilter').value;
+                const chartData = prepareChartData(selectedStudyLead);
+                
+                createChart(chartData);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.querySelector('.chart-container').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error refreshing chart:', error);
+                showError(`Error loading data: ${error.message}`);
+            }
+        }
+
+        // Test simple API access first
+        async function testSimpleAPI() {
+            console.log('Testing simple API access...');
+            try {
+                // Test with a simple query first
+                const testData = await quickbaseQuery(CONFIG.tables.projects, [24], ''); // Just get project codes
+                console.log('Simple API test successful:', testData);
+                return true;
+            } catch (error) {
+                console.error('Simple API test failed:', error);
+                return false;
+            }
+        }
+
+        // Initialize the dashboard
+        async function initDashboard() {
+            try {
+                hideError();
+                
+                // Test API access first
+                const apiWorks = await testSimpleAPI();
+                if (!apiWorks) {
+                    throw new Error('API test failed - check console for details');
+                }
+                
+                // Load data from both tables
+                await Promise.all([
+                    loadProjects(),
+                    loadMilestones()
+                ]);
+
+                // Create initial chart
+                await refreshChart();
+                
+            } catch (error) {
+                console.error('Error initializing dashboard:', error);
+                showError(`Failed to initialize dashboard: ${error.message}`);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('studyLeadFilter').addEventListener('change', refreshChart);
+
+        // Start the application
+        document.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
+</body>
+</html>
