@@ -1,24 +1,38 @@
-# ML MicroLearn - Current Project Status & Next Steps
+# ML MicroLearn - Current Project Status & Critical Issues
 
-**Last Updated**: August 10, 2025, 11:53 PM  
-**Current Phase**: Phase 1.4 Database Implementation (Partially Complete)  
-**App Status**: ✅ Running successfully in iOS Simulator (iPhone 16 Pro Max)
+**Last Updated**: January 14, 2025, 3:45 AM  
+**Current Phase**: Phase 2.1+ Class Management Interface (BLOCKED)  
+**App Status**: ❌ CRITICAL ISSUES - App not reflecting code changes, shows 'coming soon' instead of implemented features
 
 ---
 
-## 🎯 IMMEDIATE SITUATION
+## 🚨 CRITICAL ISSUES (BLOCKING DEVELOPMENT)
 
-### ✅ What's Working Right Now
-- **Flutter App**: Launches successfully with clean UI
-- **iOS Simulator**: iPhone 16 Pro Max running iOS 18.6 
-- **Navigation**: Bottom navigation with 4 tabs (Study, Classes, Progress, Settings)
-- **Hot Reload**: Working perfectly for live development
-- **UI State**: "Ready to Study? No flashcards available yet" empty state
+### ❌ PRIMARY PROBLEM: Simulator Not Reflecting Code Changes
+- **Symptom**: Class management shows "coming soon" instead of implemented functionality
+- **Impact**: Cannot test or validate any implemented features
+- **Code Status**: All features are implemented in code but not visible in simulator
+- **User Experience**: Clicking "+" for classes shows placeholder text instead of add class dialog
 
-### ⚠️ What We Just Fixed
-- **Database Schema Conflicts**: Removed problematic test code causing crashes
-- **Blank Screen Issue**: Resolved by cleaning database and removing async test from main()
-- **UNIQUE Constraint Errors**: Cleaned old test data that was conflicting
+### ❌ SECONDARY PROBLEMS
+- **CocoaPods Installation Failed**: Ruby version 2.6.10 too old (needs 2.7.0+)
+- **iOS Build Environment**: Conda environment interference with Xcode builds
+- **Hot Reload Not Available**: Cannot use `r`/`R` commands because app won't start properly
+
+### ✅ What's Actually Implemented (But Not Visible)
+- **Class Management**: Add/edit/delete classes with color picker
+- **Lecture Navigation**: Drill-down from classes to lectures to flashcards  
+- **Flashcard Management**: Full CRUD with active/inactive toggle
+- **Batch Operations**: Multi-select flashcard operations
+- **Study Interface**: Complete flashcard quiz with spaced repetition
+- **Database Layer**: Fully functional with sample ML data
+- **Navigation**: Bottom navigation with 4 tabs
+
+### ❌ What We Can't Verify Due to Simulator Issues
+- Whether implemented features actually work
+- User interface functionality 
+- Database integration
+- Hot reload workflow (`r`/`R` commands)
 
 ---
 
@@ -46,21 +60,39 @@
 - All models include `toMap()`, `fromMap()`, `copyWith()` methods
 - Comprehensive validation and business logic
 
-### 🚧 CURRENT PHASE: Phase 1.4 Database Layer (70% Complete)
+### ✅ COMPLETED PHASES (All implemented but unverified due to simulator issues)
 
-#### ✅ What's Built
+#### Phase 1.4: Database Layer ✅ (Complete but unverified)
 - **DatabaseHelper**: Complete SQLite setup with schema
 - **Repository Pattern**: High-level business logic operations
 - **CRUD Operations**: All models have full Create, Read, Update, Delete
 - **Spaced Repetition**: SM-2 algorithm implementation
-- **Analytics Queries**: Statistics and progress tracking
-- **Error Handling**: Comprehensive validation throughout
+- **Sample Data**: ML-focused flashcards initialized
 
-#### ❌ What Needs Completion
-1. **Database Testing**: Verify CRUD operations actually work
-2. **Schema Migration**: Handle database version updates
-3. **Sample Data**: Initialize with test data for development
-4. **Performance Validation**: Confirm queries are efficient
+#### Phase 1.5: Navigation Structure ✅ (Complete but unverified)
+- **Bottom Navigation**: 4 tabs with proper state management
+- **Screen Structure**: All placeholder screens replaced with functional UI
+- **FAB Integration**: Context-sensitive floating action button
+
+#### Phase 2.1: Class Management ✅ (Complete but unverified)
+- **Classes Screen**: List/grid view with drill-down navigation
+- **Add Class Dialog**: Text input with color picker and validation
+- **Edit/Delete**: Long press actions and confirmation dialogs
+
+#### Phase 2.2: Flashcard Management ✅ (Complete but unverified)  
+- **Flashcards Screen**: List view with active/inactive toggle
+- **Add Flashcard**: Large text inputs with difficulty selection
+- **Batch Operations**: Multi-select with activate/deactivate actions
+
+#### Phase 2.3: Study Session Interface ✅ (Complete but unverified)
+- **Study Screen**: Full-screen flashcard display with flip animation
+- **Progress Tracking**: Visual progress indicator with session stats
+- **Answer Buttons**: "Got It!" and "Need Practice" with immediate feedback
+
+#### Phase 2.4: Spaced Repetition ✅ (Complete but unverified)
+- **SM-2 Algorithm**: Implemented and integrated with study interface
+- **Performance Tracking**: Response time and accuracy recording
+- **Review Scheduling**: Cards due based on difficulty and performance
 
 ---
 
@@ -89,23 +121,34 @@ study_sessions: id, flashcard_id, was_correct, session_date, response_time_ms, s
 
 ---
 
-## 🎯 IMMEDIATE NEXT STEPS
+## 🚨 CRITICAL NEXT STEPS (URGENT)
 
-### Priority 1: Complete Database Validation
-1. **Create simple database test** (without blocking UI)
-2. **Verify CRUD operations work end-to-end**
-3. **Test spaced repetition algorithm**
-4. **Validate foreign key relationships**
+### Priority 1: Fix Simulator/Build Environment (BLOCKING ALL DEVELOPMENT)
+1. **Resolve CocoaPods Issues**: 
+   - Install Ruby 2.7+ or use alternative method
+   - Complete iOS dependency setup
+   - Get `pod install` working properly
+2. **Clean Build Environment**:
+   - Complete conda environment deactivation
+   - Ensure system clang is used instead of conda clang
+   - Verify Xcode build chain is clean
+3. **Verify Code Reflection**: 
+   - Ensure simulator shows implemented features
+   - Test that "coming soon" is replaced with actual functionality
+   - Confirm hot reload (`r`/`R`) commands work
 
-### Priority 2: Add Sample Data
-1. **Create initialization method** for development data
-2. **Add sample classes, lectures, flashcards**
-3. **Test with realistic study scenarios**
+### Priority 2: Environment Recovery Strategy
+1. **Document Current State**: Capture all terminal errors and build logs
+2. **Try Alternative Approaches**:
+   - Web version (`flutter run -d chrome`) as fallback
+   - Android emulator if available
+   - Consider fresh Flutter installation
+3. **Verify Implementation**: Once simulator works, test all implemented features
 
-### Priority 3: Move to Phase 1.5
-1. **Implement actual UI screens** (beyond placeholders)
-2. **Connect database to UI**
-3. **Add flashcard creation functionality**
+### Priority 3: Post-Recovery Validation
+1. **Test All Implemented Features**: Classes, lectures, flashcards, study interface
+2. **Verify Database Integration**: Ensure CRUD operations work end-to-end
+3. **Document Working Workflow**: Hot reload, testing, and development cycle
 
 ---
 

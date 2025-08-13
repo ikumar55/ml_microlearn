@@ -2,6 +2,7 @@
 class StudyClass {
   final int? id;
   final String name;
+  final String? description;    // Optional description for the class
   final String color;           // Hex color code for visual organization
   final DateTime createdAt;
   final int totalFlashcards;    // Computed from related flashcards
@@ -10,6 +11,7 @@ class StudyClass {
   const StudyClass({
     this.id,
     required this.name,
+    this.description,
     required this.color,
     required this.createdAt,
     this.totalFlashcards = 0,
@@ -21,6 +23,7 @@ class StudyClass {
     return StudyClass(
       id: map['id'] as int?,
       name: map['name'] as String,
+      description: map['description'] as String?,
       color: map['color'] as String,
       createdAt: DateTime.parse(map['created_at'] as String),
       totalFlashcards: map['total_flashcards'] as int? ?? 0,
@@ -33,6 +36,7 @@ class StudyClass {
     return {
       'id': id,
       'name': name,
+      'description': description,
       'color': color,
       'created_at': createdAt.toIso8601String(),
       // Note: computed fields are not stored directly
@@ -43,6 +47,7 @@ class StudyClass {
   StudyClass copyWith({
     int? id,
     String? name,
+    String? description,
     String? color,
     DateTime? createdAt,
     int? totalFlashcards,
@@ -51,6 +56,7 @@ class StudyClass {
     return StudyClass(
       id: id ?? this.id,
       name: name ?? this.name,
+      description: description ?? this.description,
       color: color ?? this.color,
       createdAt: createdAt ?? this.createdAt,
       totalFlashcards: totalFlashcards ?? this.totalFlashcards,

@@ -13,6 +13,7 @@ class StudyRepository {
   /// Create a new study class with validation
   Future<StudyClass> createStudyClass({
     required String name,
+    String? description,
     required String color,
   }) async {
     // Validate inputs
@@ -26,6 +27,7 @@ class StudyRepository {
     
     final studyClass = StudyClass(
       name: name.trim(),
+      description: description?.trim().isEmpty == true ? null : description?.trim(),
       color: color,
       createdAt: DateTime.now(),
       totalFlashcards: 0,
@@ -170,6 +172,18 @@ class StudyRepository {
   /// Get active flashcards for notifications
   Future<List<Flashcard>> getActiveFlashcards() async {
     return await _dbHelper.getActiveFlashcards();
+  }
+  
+  /// Update flashcard (general purpose)
+  Future<Flashcard> updateFlashcard(Flashcard flashcard) async {
+    if (flashcard.id == null) {
+      throw ArgumentError('Cannot update flashcard without ID');
+    }
+    
+    await _dbHelper.updateFlashcard(flashcard);
+    await _dbHelper.updateComputedFields();
+    
+    return flashcard;
   }
   
   /// Update flashcard after study session

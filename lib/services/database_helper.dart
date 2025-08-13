@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:path/path.dart';
 import '../models/index.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// DatabaseHelper - Singleton class for managing SQLite database operations
 /// Provides CRUD operations for all data models with proper relationships
@@ -24,6 +28,16 @@ class DatabaseHelper {
   
   /// Initialize database with proper schema
   Future<Database> _initDatabase() async {
+    // Initialize SQLite for web/desktop platforms
+    if (kIsWeb) {
+      // Web-specific initialization
+      databaseFactory = databaseFactoryFfiWeb;
+    } else if (!Platform.isAndroid && !Platform.isIOS) {
+      // Desktop platforms
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+    
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, _databaseName);
     
@@ -42,6 +56,7 @@ class DatabaseHelper {
       CREATE TABLE study_classes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
+        description TEXT,
         color TEXT NOT NULL,
         created_at TEXT NOT NULL,
         total_flashcards INTEGER NOT NULL DEFAULT 0,
